@@ -9,6 +9,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <pthread.h>
 
 #define IP "127.0.0.1"
 #define PUERTO "6667"
@@ -30,6 +31,7 @@ typedef struct _t_Package {
 	uint32_t total_size;			// NOTA: Es calculable. Aca lo tenemos por fines didacticos!
 } t_Package;
 
+pthread_t thread;
 /*
  * 	Definicion de funciones
  */
@@ -62,10 +64,17 @@ int crearConexion(char * ip, char * puerto){
 
 
 }
+void recibirMensajes(int *socketServidor){
+	while(1){
+		char * buffer = malloc(1024);
+		recv(*socketServidor, buffer, 1024, 0);
+		printf("A %s",buffer);
+	}
+}
 int main(){
 
 	int socketServidor;
-	char *username = malloc(MAXUSERNAME);
+	char * username = malloc(MAXUSERNAME);
 	char * ip = (char *)malloc(16);
 	char * puerto = (char *)malloc(6);
 	get_Username(&username);
@@ -90,6 +99,8 @@ int main(){
 
 	printf("Bienvenido al sistema, puede comenzar a escribir. Escriba 'exit' para salir.\n");
 
+	pthread_create(&thread,NULL,(void*)recibirMensajes,&socketServidor);
+	pthread_detach(thread);
 	while(enviar){
 
 		fill_package(&package, &username);
@@ -103,7 +114,7 @@ int main(){
 		}
 	}
 
-	printf("Desconectado.\n");
+	printf("Desconectado\n");
 
 
 	free(package.message);

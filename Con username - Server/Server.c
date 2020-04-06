@@ -17,6 +17,8 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <commons/log.h>
+#include <commons/collections/list.h>
 
 
 #define PUERTO "6667"
@@ -24,6 +26,8 @@
 #define MAX_PACKAGE_SIZE 1024	//El servidor no admitira paquetes de mas de 1024 bytes
 #define MAXUSERNAME 30
 #define MAX_MESSAGE_SIZE 300
+
+
 
 /*
  * 	Definicion de estructuras
@@ -39,11 +43,12 @@ typedef struct _t_Package {
 } t_Package;
 
 pthread_t thread;
+t_list * listaSockets;
 /*
  * 	Definicion de funciones
  */
+t_list * list_create();
 
-int recieve_and_deserialize(t_Package *,int);
 
 #endif
 
@@ -104,7 +109,14 @@ void iniciarChat(int socketCliente)
 
 	while (status){
 		status = recieve_and_deserialize(&package, socketCliente);
-		if (status) printf("%s says: %s", package.username, package.message);
+		if (status){
+			printf("%s says: %s", package.username, package.message);
+            for(int i=0; i<list_size(listaSockets);i++)
+            {
+            	send(*(int *)list_get(listaSockets,i), package.message, strlen(package.message)+1, 0);
+            }
+		}
+
 	}
 	printf("%s se ha desconectado.\n", package.username);
 	close(socketCliente);
@@ -116,6 +128,7 @@ void atenderCliente(int *socketCliente){
 int main(){
     int socketDeEscucha;
     char * puerto = (char *)malloc(6);
+    listaSockets=list_create();
 
     printf("Ingrese puerto desde el cual escuchar: ");
     scanf("%s",puerto);
@@ -129,8 +142,11 @@ int main(){
 	socklen_t addrlen = sizeof(addr);
 
 
-	int socketCliente = accept(socketDeEscucha, (struct sockaddr *) &addr, &addrlen);
-	pthread_create(&thread,NULL,(void*)atenderCliente,&socketCliente);
+	//int socketCliente = accept(socketDeEscucha, (struct sockaddr *) &addr, &addrlen);
+	int * socketCliente = (int *)malloc(sizeof(int));
+	*socketCliente=accept(socketDeEscucha, (struct sockaddr *) &addr, &addrlen);
+	list_add(listaSockets, socketCliente);
+	pthread_create(&thread,NULL,(void*)atenderCliente,socketCliente);
 	pthread_detach(thread);
 	}
 
